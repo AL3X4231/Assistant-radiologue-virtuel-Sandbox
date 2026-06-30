@@ -2,7 +2,7 @@ import os
 import json
 import re
 import torch
-from transformers import AutoProcessor, AutoModelForCausalLM
+from transformers import AutoProcessor, AutoModelForCausalLM, BitsAndBytesConfig
 from transformers.generation.streamers import BaseStreamer # <-- L'importation corrigée est ici
 from PIL import Image
 from tqdm import tqdm
@@ -12,8 +12,9 @@ from tqdm import tqdm
 # ==========================================
 MODEL_ID = "google/medgemma-4b-it"
 
-# À modifier avec un chemin réel de ton dataset NIH
-IMAGE_PATH = r"C:\Users\alex2\OneDrive\Documents\Assistant-radiologue-virtuel-Sandbox\extracted_radios\00001222_009.png" 
+# Chemin relatif au script (recherche dans le dossier 'extracted_radios' situé à côté du script)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+IMAGE_PATH = os.path.join(BASE_DIR, "extracted_radios", "00000003_000.png")
 
 # Le texte brut de tes instructions
 RAW_PROMPT = """You are an AI vision tool designed to analyze frontal chest X-rays for educational purposes.
@@ -157,11 +158,18 @@ def main():
     print("\n[1/4] Chargement du processeur...")
     processor = AutoProcessor.from_pretrained(MODEL_ID)
 
-    print(f"[2/4] Chargement du modèle MedGemma 4B IT sur {target_device.upper()}...")
+    print(f"[2/4] Chargement du modèle MedGemma 4B IT (en 4-bit pour économiser la mémoire)...")
+    
+    # Configuration pour charger le modèle en 4-bit
+    quantization_config = BitsAndBytesConfig(
+        load_in_4bit=True,
+        bnb_4bit_compute_dtype=model_dtype
+    )
+    
     model = AutoModelForCausalLM.from_pretrained(
         MODEL_ID,
-        device_map=target_device, 
-        dtype=model_dtype
+        device_map="auto", 
+        quantization_config=quantization_config,
     )
     
     print("[3/4] Traitement de l'image (PNG) et du prompt multimodal...")
