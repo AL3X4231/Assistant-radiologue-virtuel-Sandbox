@@ -12,9 +12,9 @@ from tqdm import tqdm
 # ==========================================
 MODEL_ID = "google/medgemma-4b-it"
 
-# Chemin relatif au script (recherche dans le dossier 'extracted_radios' situé à côté du script)
+# Chemin relatif au script (recherche dans le dossier data/raw/images)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-IMAGE_PATH = os.path.join(BASE_DIR, "extracted_radios", "00000003_000.png")
+IMAGE_PATH = os.path.join(BASE_DIR, "..", "..", "data", "raw", "images", "00000003_000.png")
 
 # Le texte brut de tes instructions
 RAW_PROMPT = """You are an AI vision tool designed to analyze frontal chest X-rays for educational purposes.
@@ -173,6 +173,14 @@ def main():
     )
     
     print("[3/4] Traitement de l'image (PNG) et du prompt multimodal...")
+    
+    # Load LoRA adapter if it exists
+    adapter_path = os.path.join(BASE_DIR, "..", "..", "checkpoints", "medgemma-qlora", "final")
+    if os.path.exists(adapter_path):
+        from peft import PeftModel
+        print(f"[*] Chargement des poids affinés (LoRA) depuis {adapter_path}...")
+        model = PeftModel.from_pretrained(model, adapter_path)
+    
     image = Image.open(IMAGE_PATH).convert("RGB")
     
     # Création de la structure de conversation multimodale

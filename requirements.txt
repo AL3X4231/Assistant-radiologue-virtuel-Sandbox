@@ -4,3 +4,11 @@ Pillow
 tqdm
 accelerate
 bitsandbytes
+peft
+trl
+datasets
+tensorboard
+pandas
+scikit-learn
+seaborn
+matplotlib

@@ -1,2 +1,40 @@
-/extracted_radios
-/medgemma_env
+# Virtual Environments
+venv/
+env/
+medgemma_env/
+.env
+
+# Data
+data/
+extracted_radios/
+*.csv
+*.zip
+*.tar.gz
+*.jsonl
+
+# Models & Checkpoints
+checkpoints/
+models/
+*.pt
+*.pth
+*.bin
+*.safetensors
+*.onnx
+*.gguf
+
+# Logs
+logs/
+runs/
+wandb/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+.ipynb_checkpoints/
+
+# OS & IDE
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
