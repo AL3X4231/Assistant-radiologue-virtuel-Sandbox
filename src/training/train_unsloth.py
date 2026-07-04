@@ -19,12 +19,11 @@ def main():
     parser.add_argument("--output_dir", type=str, default="checkpoints/medgemma-unsloth")
     args = parser.parse_args()
 
-    print("🚀 Initialisation de l'entraînement Unsloth sur cluster 40Go...")
+    print("🚀 Initialisation de l'entraînement Unsloth sur Cluster Multi-GPU (5x 8Go)...")
     
-    # Vérification BFloat16 (Fortement recommandé pour les A100/H100/RTX 30xx+)
-    bfloat16_support = is_bfloat16_supported()
-    dtype = torch.bfloat16 if bfloat16_support else torch.float16
-    print(f"✅ Type de précision utilisé : {dtype}")
+    # Force float16 car les cartes Pascal (GTX 1070 Ti) ne supportent pas bfloat16
+    dtype = torch.float16
+    print(f"✅ Type de précision forcé : {dtype} (Pascal Architecture)")
 
     # ==========================================
     # 1. CHARGEMENT DU MODÈLE (UNSLOTH)
@@ -36,7 +35,7 @@ def main():
     try:
         model, tokenizer = FastVisionModel.from_pretrained(
             model_name = MODEL_ID,
-            load_in_4bit = False, # On met False car on a 40 Go de VRAM ! On veut la qualité max (16-bit)
+            load_in_4bit = True, # OBLIGATOIRE pour tenir sur 8 Go de VRAM
             use_gradient_checkpointing = "unsloth", 
             dtype = dtype
         )
@@ -44,7 +43,7 @@ def main():
         print("⚠️ Le modèle ne semble pas être reconnu comme un modèle Vision par Unsloth. Tentative en mode Texte pur...")
         model, tokenizer = FastLanguageModel.from_pretrained(
             model_name = MODEL_ID,
-            load_in_4bit = False, 
+            load_in_4bit = True, 
             dtype = dtype
         )
 
@@ -84,19 +83,19 @@ def main():
     # ==========================================
     training_args = TrainingArguments(
         output_dir=args.output_dir,
-        per_device_train_batch_size=4, # Avec 40Go, on peut monter le batch size !
-        gradient_accumulation_steps=4,
+        per_device_train_batch_size=1, # 1 seule image par carte pour ne pas exploser les 8 Go
+        gradient_accumulation_steps=8, # On simule un batch size de 8 (1 * 8)
         warmup_steps=50,
-        num_train_epochs=3, # 3 epochs pour voir si on atteint les 75-80%
+        num_train_epochs=3, 
         learning_rate=2e-4,
-        fp16=not bfloat16_support,
-        bf16=bfloat16_support,
+        fp16=True, # Forcé pour Pascal
+        bf16=False,
         logging_steps=10,
         optim="adamw_8bit", # Optimiseur très léger en VRAM
         weight_decay=0.01,
         lr_scheduler_type="linear",
         seed=3407,
-        report_to="none" # Mettez "wandb" ou "tensorboard" si vous voulez des graphiques
+        report_to="none" 
     )
 
     trainer = SFTTrainer(
