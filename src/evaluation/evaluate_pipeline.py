@@ -5,6 +5,7 @@ import re
 import pandas as pd
 import torch
 from transformers import AutoProcessor, AutoModelForCausalLM
+from peft import PeftModel
 from PIL import Image
 from tqdm import tqdm
 from sklearn.metrics import confusion_matrix, accuracy_score
@@ -20,8 +21,9 @@ PROJECT_DIR = os.path.abspath(os.path.join(BASE_DIR, "..", ".."))
 
 TEST_DIR = os.path.join(PROJECT_DIR, "test_samples")
 CSV_FILE = os.path.join(PROJECT_DIR, "data", "raw", "metadata", "Data_Entry_2017.csv")
-OUTPUT_CSV = os.path.join(PROJECT_DIR, "data", "processed", "pipeline_results.csv")
-OUTPUT_PLOT = os.path.join(PROJECT_DIR, "data", "processed", "confusion_matrix_pipeline.png")
+OUTPUT_CSV = os.path.join(PROJECT_DIR, "data", "processed", "pipeline_results_finetuned.csv")
+OUTPUT_PLOT = os.path.join(PROJECT_DIR, "data", "processed", "confusion_matrix_finetuned.png")
+LORA_DIR = os.path.join(PROJECT_DIR, "checkpoints", "medgemma-unsloth")
 
 # ==========================================
 # PROMPTS SÉPARÉS
@@ -103,11 +105,19 @@ def main():
     # Précision BFloat16 recommandée pour cluster
     dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
     
-    model = AutoModelForCausalLM.from_pretrained(
+    base_model = AutoModelForCausalLM.from_pretrained(
         MODEL_ID,
         torch_dtype=dtype,
         device_map="auto"
     )
+    
+    print(f"Loading LoRA weights from {LORA_DIR}...")
+    if os.path.exists(LORA_DIR):
+        model = PeftModel.from_pretrained(base_model, LORA_DIR, adapter_name="classifier")
+    else:
+        print("⚠️ ATTENTION : Poids LoRA introuvables. L'évaluation se fera avec le modèle de base uniquement.")
+        model = base_model
+
     model.eval()
 
     results = []
@@ -126,14 +136,22 @@ def main():
 
         start_img_time = time.time()
         
-        # STEP 1: CLASSIFIER
+        # STEP 1: CLASSIFIER (On active le Fine-Tuning)
+        if hasattr(model, "set_adapter"):
+            model.set_adapter("classifier")
+            
         class_json = run_inference(processor, model, image, CLASSIFIER_PROMPT)
         predicted_class = class_json.get("predicted_class", "incertain")
         
-        # STEP 2: EXPLAINER
+        # STEP 2: EXPLAINER (On désactive le Fine-Tuning pour retrouver l'IA de base)
         explainer_prompt = EXPLAINER_PROMPT_TEMPLATE.format(predicted_class=predicted_class)
-        explainer_json = run_inference(processor, model, image, explainer_prompt)
         
+        if hasattr(model, "disable_adapter"):
+            with model.disable_adapter():
+                explainer_json = run_inference(processor, model, image, explainer_prompt)
+        else:
+            explainer_json = run_inference(processor, model, image, explainer_prompt)
+            
         img_duration = time.time() - start_img_time
         
         # Standardisation pour la matrice de confusion
