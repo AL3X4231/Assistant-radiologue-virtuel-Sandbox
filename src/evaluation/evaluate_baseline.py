@@ -99,10 +99,10 @@ def extract_json_from_text(text):
         json_str = match.group(0)
         try:
             data = json.loads(json_str)
-            return data.get("predicted_class", "erreur_format")
+            return data, data.get("predicted_class", "erreur_format")
         except json.JSONDecodeError:
-            return "erreur_json"
-    return "pas_de_json"
+            return {"error": "erreur_json"}, "erreur_json"
+    return {"error": "pas_de_json"}, "pas_de_json"
 
 def main():
     os.makedirs(os.path.dirname(OUTPUT_CSV), exist_ok=True)
@@ -169,22 +169,31 @@ def main():
         
         # Decode output
         generated_text = processor.decode(outputs[0][inputs["input_ids"].shape[-1]:], skip_special_tokens=True)
-        pred_class = extract_json_from_text(generated_text)
+        json_data, pred_class = extract_json_from_text(generated_text)
         
         # Standardize predictions to strictly "normal" or "suspicion_opacite" for the matrix
         # If the model fails or says "incertain", we might treat it as a failure to predict.
         # For medical safety, usually "incertain" or errors are grouped with "suspicion_opacite" to force review.
         standardized_pred = "suspicion_opacite"
-        if pred_class.lower().strip() == "normal":
+        if pred_class and isinstance(pred_class, str) and pred_class.lower().strip() == "normal":
             standardized_pred = "normal"
         
-        results.append({
-            "image": img_name,
+        row_data = {
+            "image_name": img_name,
             "ground_truth": gt_class,
             "raw_prediction": pred_class,
             "standardized_prediction": standardized_pred,
-            "time_seconds": round(img_duration, 2)
-        })
+            "time_seconds": round(img_duration, 2),
+            "image_quality": json_data.get("image_quality", ""),
+            "predicted_class": json_data.get("predicted_class", ""),
+            "confidence": json_data.get("confidence", ""),
+            "visual_evidence": json_data.get("visual_evidence", ""),
+            "justification": json_data.get("justification", ""),
+            "limitations": json_data.get("limitations", ""),
+            "warning": json_data.get("warning", ""),
+            "error": json_data.get("error", "")
+        }
+        results.append(row_data)
 
     # Save to CSV
     res_df = pd.DataFrame(results)
