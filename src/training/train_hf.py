@@ -32,26 +32,25 @@ def main():
         bnb_4bit_use_double_quant=True
     )
 
-    from accelerate import Accelerator
-    accelerator = Accelerator()
-    device_index = accelerator.local_process_index
-
-    print(f"⏳ Chargement du modèle sur le GPU {device_index}...")
+    print("⏳ Chargement du modèle...")
     processor = AutoProcessor.from_pretrained(MODEL_ID)
     
+    # Récupération de l'ID du GPU assigné à ce processus
+    local_rank = int(os.environ.get("LOCAL_RANK", 0))
+
     # Chargement standard HF (sans Unsloth)
     try:
         from transformers import AutoModelForImageTextToText
         model = AutoModelForImageTextToText.from_pretrained(
             MODEL_ID,
             quantization_config=quantization_config,
-            device_map={"": device_index}
+            device_map={"": local_rank} # Empêche le crash de RAM CPU
         )
     except Exception:
         model = AutoModelForCausalLM.from_pretrained(
             MODEL_ID,
             quantization_config=quantization_config,
-            device_map={"": device_index}
+            device_map={"": local_rank}
         )
 
     # On active le gradient checkpointing classique HF (Beaucoup plus stable pour Pascal)
