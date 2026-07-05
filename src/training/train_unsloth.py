@@ -38,7 +38,7 @@ def main():
         model, tokenizer = FastVisionModel.from_pretrained(
             model_name = MODEL_ID,
             load_in_4bit = True, # OBLIGATOIRE pour tenir sur 8 Go de VRAM
-            use_gradient_checkpointing = "unsloth", 
+            use_gradient_checkpointing = True, # "unsloth" fait crasher les cartes Pascal, on utilise le standard HF
             dtype = dtype
         )
     except Exception as e:
