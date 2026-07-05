@@ -1,4 +1,5 @@
 import os
+os.environ['PYTORCH_CUDA_ALLOC_CONF'] = ''
 import torch
 from datasets import load_dataset, Image
 from unsloth import FastLanguageModel, is_bfloat16_supported

@@ -15,10 +15,16 @@ echo "🔌 Activation de l'environnement virtuel..."
 source venv/bin/activate
 
 # 2. Installation des dépendances Unsloth & Accelerate
-echo "⚙️ Installation des dépendances (Unsloth + Accelerate)..."
+echo "⚙️ Installation de PyTorch (Version compatible CUDA 12.1 pour vos anciens drivers)..."
 pip install --upgrade pip
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+
+echo "⚙️ Installation de xformers (après PyTorch)..."
+pip install xformers --index-url https://download.pytorch.org/whl/cu121
+
+echo "⚙️ Installation de Unsloth et Accelerate..."
 pip install "unsloth[colab-new] @ git+https://github.com/unslothai/unsloth.git"
-pip install --no-deps "xformers<0.0.27" "trl<0.9.0" peft accelerate bitsandbytes
+pip install "trl<0.9.0" peft accelerate bitsandbytes
 
 # Configuration automatique d'Accelerate pour utiliser toutes les cartes disponibles
 echo "⚙️ Configuration de Accelerate (Multi-GPU)..."
