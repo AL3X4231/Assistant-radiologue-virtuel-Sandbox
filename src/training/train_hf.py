@@ -37,6 +37,14 @@ def main():
     
     # Récupération de l'ID du GPU assigné à ce processus
     local_rank = int(os.environ.get("LOCAL_RANK", 0))
+    
+    # Évite que les 5 processus tentent de charger le modèle et d'initialiser CUDA 
+    # à la milliseconde près (ce qui fait planter le pilote NVIDIA sur les anciennes cartes)
+    import time
+    print(f"⏳ Processus {local_rank} en attente de son tour pour ne pas surcharger le pilote...")
+    time.sleep(local_rank * 3) # Décale le chargement de 3 secondes par carte
+    
+    torch.cuda.set_device(local_rank)
 
     # Chargement standard HF (sans Unsloth)
     try:
