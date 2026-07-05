@@ -33,7 +33,8 @@ accelerate config default
 # 3. Lancement de l'entraînement
 echo "🔥 Lancement de l'entraînement Multi-GPU..."
 # On utilise accelerate launch pour distribuer la charge sur toutes les cartes
-nohup accelerate launch --num_processes 5 src/training/train_unsloth.py --data_path data/processed/dataset_train_10k.jsonl > logs/training_unsloth.log 2>&1 &
+echo "🚀 Lancement de l'entraînement avec Hugging Face Standard..."
+nohup accelerate launch --num_processes 5 src/training/train_hf.py --data_path data/processed/dataset_train_10k.jsonl > logs/training_hf.log 2>&1 &
 
 echo "✅ Entraînement lancé en arrière-plan sur les 5 cartes !"
 echo "👀 Pour voir l'avancée en temps réel, tapez :"
