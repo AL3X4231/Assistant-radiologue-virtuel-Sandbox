@@ -1,8 +1,9 @@
 import os
 import torch
-from datasets import load_dataset
+from datasets import load_dataset, Image
 from unsloth import FastLanguageModel, is_bfloat16_supported
 from unsloth import FastVisionModel
+from unsloth.trainer import UnslothVisionDataCollator
 from trl import SFTTrainer
 from transformers import TrainingArguments
 import argparse
@@ -76,6 +77,16 @@ def main():
     # ==========================================
     print(f"📊 Chargement du dataset depuis {args.data_path}...")
     dataset = load_dataset("json", data_files={"train": args.data_path})["train"]
+    
+    # 3.1 Chargement réel des images (requis pour Vision)
+    images_dir = os.path.join(os.path.dirname(args.data_path), "../raw/images")
+    def format_image_path(example):
+        example["image"] = os.path.join(images_dir, example["image"])
+        return example
+        
+    dataset = dataset.map(format_image_path)
+    dataset = dataset.cast_column("image", Image())
+    
     print(f"✅ Dataset chargé : {len(dataset)} exemples.")
 
     # ==========================================
@@ -95,14 +106,19 @@ def main():
         weight_decay=0.01,
         lr_scheduler_type="linear",
         seed=3407,
+        remove_unused_columns=False, # IMPORTANT pour les modèles Vision
         report_to="none" 
     )
+
+    FastVisionModel.for_training(model) # Obligatoire pour Unsloth Vision
 
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
         train_dataset=dataset,
-        dataset_text_field="conversations", # Dépend du format (Llava utilise 'conversations')
+        data_collator=UnslothVisionDataCollator(model, tokenizer),
+        dataset_text_field="", # Doit être vide pour la vision
+        dataset_kwargs={"skip_prepare_dataset": True}, # Empêche TRL de supprimer l'image
         max_seq_length=MAX_SEQ_LENGTH,
         args=training_args,
     )
