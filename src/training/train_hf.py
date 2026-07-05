@@ -14,7 +14,7 @@ import argparse
 # ==========================================
 # CONFIGURATION
 # ==========================================
-MODEL_ID = "google/medgemma-4b-it" 
+MODEL_ID = "models/medgemma-4b-4bit" 
 
 def main():
     parser = argparse.ArgumentParser(description="Fine-tune MedGemma (Hugging Face Standard)")
@@ -23,14 +23,6 @@ def main():
     args = parser.parse_args()
 
     print("🚀 Initialisation de l'entraînement Standard (Hugging Face) sur Cluster Multi-GPU...")
-    
-    # Configuration 4-bit native (BitsAndBytes)
-    quantization_config = BitsAndBytesConfig(
-        load_in_4bit=True,
-        bnb_4bit_compute_dtype=torch.float16,
-        bnb_4bit_quant_type="nf4",
-        bnb_4bit_use_double_quant=True
-    )
 
     print("⏳ Chargement du modèle...")
     processor = AutoProcessor.from_pretrained(MODEL_ID)
@@ -46,18 +38,18 @@ def main():
     
     torch.cuda.set_device(local_rank)
 
-    # Chargement standard HF (sans Unsloth)
+    # Chargement du modèle PRÉ-QUANTIFIÉ (Zéro charge sur le CPU du serveur !)
     try:
         from transformers import AutoModelForImageTextToText
         model = AutoModelForImageTextToText.from_pretrained(
             MODEL_ID,
-            quantization_config=quantization_config,
-            device_map={"": local_rank} # Empêche le crash de RAM CPU
+            local_files_only=True,
+            device_map={"": local_rank} 
         )
     except Exception:
         model = AutoModelForCausalLM.from_pretrained(
             MODEL_ID,
-            quantization_config=quantization_config,
+            local_files_only=True,
             device_map={"": local_rank}
         )
 
